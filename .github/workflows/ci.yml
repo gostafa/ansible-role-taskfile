@@ -24,9 +24,16 @@ jobs:
       - name: Install Ansible tooling
         run: python -m pip install --upgrade pip -r requirements-ci.txt
 
+      - name: Prepare role path
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tests/roles
+          ln -sfn "${GITHUB_WORKSPACE}" tests/roles/taskfile
+
       - name: Ansible lint
         env:
-          ANSIBLE_ROLES_PATH: ${{ github.workspace }}/..
+          ANSIBLE_ROLES_PATH: ${{ github.workspace }}/tests/roles
         run: ansible-lint .
 
       - name: Syntax check test playbook
