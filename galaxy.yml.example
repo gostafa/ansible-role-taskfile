@@ -1,0 +1,3 @@
+# This file is informational for standalone roles.
+# Galaxy role versions are taken from Git tags such as v1.0.0.
+role_name: taskfile

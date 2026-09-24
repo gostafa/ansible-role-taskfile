@@ -1,0 +1,45 @@
+---
+# Taskfile release to install. Use "latest" to resolve the latest stable GitHub release.
+taskfile_version: "latest"
+
+# Installation location and binary name.
+taskfile_install_dir: "/usr/local/bin"
+taskfile_binary_name: "task"
+
+
+# Set an explicit release asset architecture to override auto-detection.
+# Supported by the current Task releases: amd64, arm64, arm, 386, riscv64.
+taskfile_arch: ""
+taskfile_arch_map:
+  x86_64: "amd64"
+  amd64: "amd64"
+  aarch64: "arm64"
+  arm64: "arm64"
+  armv6l: "arm"
+  armv7l: "arm"
+  armhf: "arm"
+  i386: "386"
+  i686: "386"
+  riscv64: "riscv64"
+
+# Remote source configuration. These are intentionally customizable for mirrors/proxies.
+taskfile_github_api_url: "https://api.github.com"
+taskfile_github_repository: "go-task/task"
+taskfile_download_base_url: "https://github.com/go-task/task/releases/download"
+
+# Security and HTTP options.
+taskfile_validate_certs: true
+taskfile_http_timeout: 30
+
+# File ownership/permissions for the installed executable.
+taskfile_owner: "root"
+taskfile_group: "root"
+taskfile_mode: "0755"
+
+# Reinstall even when the requested version is already installed.
+taskfile_force: false
+
+# Temporary working directory on the managed host.
+taskfile_temp_dir: "/tmp/ansible-taskfile"
+
+taskfile_cleanup: true

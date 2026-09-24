@@ -1,0 +1,31 @@
+---
+galaxy_info:
+  role_name: taskfile
+  author: YOUR_GITHUB_USERNAME
+  description: Install Task (Taskfile) on Linux with version pinning or latest stable release support.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+    - name: EL
+      versions:
+        - "9"
+        - "10"
+    - name: Alpine
+      versions:
+        - all
+  galaxy_tags:
+    - task
+    - taskfile
+    - development
+    - golang
+    - cli
+    - build
+dependencies: []

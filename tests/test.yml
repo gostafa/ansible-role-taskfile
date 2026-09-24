@@ -1,0 +1,13 @@
+---
+- name: Test taskfile role
+  hosts: local
+  gather_facts: true
+
+  roles:
+    - role: taskfile
+      vars:
+        taskfile_version: "3.53.1"
+        taskfile_install_dir: "/tmp/taskfile-test-bin"
+        taskfile_owner: "{{ ansible_user_id }}"
+        taskfile_group: "{{ ansible_user_id }}"
+        taskfile_temp_dir: "/tmp/taskfile-test-work"

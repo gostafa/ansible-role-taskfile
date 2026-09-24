@@ -1,0 +1,182 @@
+---
+- name: Validate target platform
+  ansible.builtin.assert:
+    that:
+      - ansible_system == "Linux"
+    fail_msg: "This role currently supports Linux only."
+    quiet: true
+
+- name: Resolve target architecture
+  ansible.builtin.set_fact:
+    taskfile_resolved_arch: >-
+      {{ taskfile_arch if (taskfile_arch | default('') | length > 0)
+         else (taskfile_arch_map[ansible_architecture] | default('')) }}
+
+- name: Validate target architecture
+  ansible.builtin.assert:
+    that:
+      - taskfile_resolved_arch | length > 0
+    fail_msg: >-
+      Unsupported architecture '{{ ansible_architecture }}'.
+      Set taskfile_arch explicitly to a supported Task release architecture.
+    quiet: true
+
+- name: Ensure installation directory exists
+  ansible.builtin.file:
+    path: "{{ taskfile_install_dir }}"
+    state: directory
+    owner: "{{ taskfile_owner }}"
+    group: "{{ taskfile_group }}"
+    mode: "0755"
+
+- name: Inspect installed Taskfile binary
+  ansible.builtin.stat:
+    path: "{{ taskfile_install_dir }}/{{ taskfile_binary_name }}"
+  register: taskfile_binary_stat
+
+- name: Read installed Task version
+  ansible.builtin.command:
+    cmd: "{{ taskfile_install_dir }}/{{ taskfile_binary_name }} --version"
+  register: taskfile_current_version_cmd
+  changed_when: false
+  failed_when: false
+  when: taskfile_binary_stat.stat.exists | default(false)
+
+- name: Parse installed Task version
+  ansible.builtin.set_fact:
+    taskfile_current_version: >-
+      {{ (taskfile_current_version_cmd.stdout | default(''))
+         | regex_search('v?[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?')
+         | default('', true) }}
+
+- name: Resolve latest stable Task release
+  ansible.builtin.uri:
+    url: "{{ taskfile_github_api_url }}/repos/{{ taskfile_github_repository }}/releases/latest"
+    method: GET
+    headers:
+      Accept: "application/vnd.github+json"
+      X-GitHub-Api-Version: "2022-11-28"
+    return_content: true
+    status_code: 200
+    timeout: "{{ taskfile_http_timeout }}"
+    validate_certs: "{{ taskfile_validate_certs }}"
+  register: taskfile_latest_release
+  when: taskfile_version | lower == "latest"
+
+- name: Resolve desired Task version
+  ansible.builtin.set_fact:
+    taskfile_resolved_version: >-
+      {{ taskfile_latest_release.json.tag_name
+         if (taskfile_version | lower == "latest")
+         else ('v' ~ taskfile_version if not taskfile_version.startswith('v') else taskfile_version) }}
+
+- name: Determine whether Taskfile installation is required
+  ansible.builtin.set_fact:
+    taskfile_install_required: >-
+      {{ taskfile_force | bool
+         or not (taskfile_binary_stat.stat.exists | default(false))
+         or (taskfile_current_version | default('') != taskfile_resolved_version) }}
+
+- name: Create temporary Taskfile directory
+  ansible.builtin.file:
+    path: "{{ taskfile_temp_dir }}"
+    state: directory
+    mode: "0700"
+  when: taskfile_install_required
+
+- name: Build release asset name
+  ansible.builtin.set_fact:
+    taskfile_asset_name: >-
+      task_{{ taskfile_resolved_version | regex_replace('^v', '') }}_linux_{{ taskfile_resolved_arch }}.tar.gz
+  when: taskfile_install_required
+
+- name: Build release URLs
+  ansible.builtin.set_fact:
+    taskfile_asset_url: >-
+      {{ taskfile_download_base_url }}/{{ taskfile_resolved_version }}/{{ taskfile_asset_name }}
+    taskfile_checksums_url: >-
+      {{ taskfile_download_base_url }}/{{ taskfile_resolved_version }}/task_checksums.txt
+  when: taskfile_install_required
+
+- name: Download official Task checksums
+  ansible.builtin.get_url:
+    url: "{{ taskfile_checksums_url }}"
+    dest: "{{ taskfile_temp_dir }}/task_checksums.txt"
+    mode: "0600"
+    force: true
+    timeout: "{{ taskfile_http_timeout }}"
+    validate_certs: "{{ taskfile_validate_certs }}"
+  when: taskfile_install_required
+
+- name: Read checksum for selected Task asset
+  ansible.builtin.shell: >-
+    awk '$NF == "{{ taskfile_asset_name }}" {print $1; exit}'
+    "{{ taskfile_temp_dir }}/task_checksums.txt"
+  args:
+    executable: /bin/sh
+  register: taskfile_checksum
+  changed_when: false
+  when: taskfile_install_required
+
+- name: Validate selected Task asset checksum is available
+  ansible.builtin.assert:
+    that:
+      - taskfile_checksum.stdout | trim | length == 64
+      - taskfile_checksum.stdout | trim is match('^[0-9a-fA-F]{64}$')
+    fail_msg: >-
+      Could not find a SHA-256 checksum for {{ taskfile_asset_name }}
+      in the official Task checksums file.
+    quiet: true
+  when: taskfile_install_required
+
+- name: Download Task archive with SHA-256 verification
+  ansible.builtin.get_url:
+    url: "{{ taskfile_asset_url }}"
+    dest: "{{ taskfile_temp_dir }}/{{ taskfile_asset_name }}"
+    checksum: "sha256:{{ taskfile_checksum.stdout | trim }}"
+    mode: "0600"
+    force: true
+    timeout: "{{ taskfile_http_timeout }}"
+    validate_certs: "{{ taskfile_validate_certs }}"
+  when: taskfile_install_required
+
+- name: Extract Task archive
+  ansible.builtin.unarchive:
+    src: "{{ taskfile_temp_dir }}/{{ taskfile_asset_name }}"
+    dest: "{{ taskfile_temp_dir }}"
+    remote_src: true
+    creates: "{{ taskfile_temp_dir }}/task"
+  when: taskfile_install_required
+
+- name: Install Task binary
+  ansible.builtin.copy:
+    src: "{{ taskfile_temp_dir }}/task"
+    dest: "{{ taskfile_install_dir }}/{{ taskfile_binary_name }}"
+    owner: "{{ taskfile_owner }}"
+    group: "{{ taskfile_group }}"
+    mode: "{{ taskfile_mode }}"
+    remote_src: true
+  when: taskfile_install_required
+
+- name: Verify installed Task version
+  ansible.builtin.command:
+    cmd: "{{ taskfile_install_dir }}/{{ taskfile_binary_name }} --version"
+  register: taskfile_verify_version
+  changed_when: false
+
+- name: Ensure installed version matches requested version
+  ansible.builtin.assert:
+    that:
+      - "taskfile_resolved_version in taskfile_verify_version.stdout"
+    fail_msg: >-
+      Task installation completed, but the installed version did not match.
+      Expected {{ taskfile_resolved_version }}, got: {{ taskfile_verify_version.stdout | trim }}
+    quiet: true
+
+- name: Remove Taskfile temporary files
+  ansible.builtin.file:
+    path: "{{ taskfile_temp_dir }}"
+    state: absent
+  when:
+    - taskfile_install_required
+    - taskfile_cleanup | bool
