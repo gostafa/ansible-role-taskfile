@@ -167,7 +167,9 @@
 - name: Ensure installed version matches requested version
   ansible.builtin.assert:
     that:
-      - "taskfile_resolved_version in taskfile_verify_version.stdout"
+      - >-
+        taskfile_resolved_version | regex_replace('^v', '') ==
+        taskfile_verify_version.stdout | trim | regex_replace('^v', '')
     fail_msg: >-
       Task installation completed, but the installed version did not match.
       Expected {{ taskfile_resolved_version }}, got:
