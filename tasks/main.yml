@@ -2,7 +2,7 @@
 - name: Validate target platform
   ansible.builtin.assert:
     that:
-      - ansible_system == "Linux"
+      - ansible_facts["system"] == "Linux"
     fail_msg: "This role currently supports Linux only."
     quiet: true
 
@@ -10,14 +10,14 @@
   ansible.builtin.set_fact:
     taskfile_resolved_arch: >-
       {{ taskfile_arch if (taskfile_arch | default('') | length > 0)
-         else (taskfile_arch_map[ansible_architecture] | default('')) }}
+         else (taskfile_arch_map[ansible_facts["architecture"]] | default('')) }}
 
 - name: Validate target architecture
   ansible.builtin.assert:
     that:
       - taskfile_resolved_arch | length > 0
     fail_msg: >-
-      Unsupported architecture '{{ ansible_architecture }}'.
+      Unsupported architecture '{{ ansible_facts["architecture"] }}'.
       Set taskfile_arch explicitly to a supported Task release architecture.
     quiet: true
 
@@ -87,7 +87,7 @@
 - name: Build release asset name
   ansible.builtin.set_fact:
     taskfile_asset_name: >-
-      task_{{ taskfile_resolved_version | regex_replace('^v', '') }}_linux_{{ taskfile_resolved_arch }}.tar.gz
+      task_linux_{{ taskfile_resolved_arch }}.tar.gz
   when: taskfile_install_required
 
 - name: Build release URLs
@@ -170,7 +170,8 @@
       - "taskfile_resolved_version in taskfile_verify_version.stdout"
     fail_msg: >-
       Task installation completed, but the installed version did not match.
-      Expected {{ taskfile_resolved_version }}, got: {{ taskfile_verify_version.stdout | trim }}
+      Expected {{ taskfile_resolved_version }}, got:
+      {{ taskfile_verify_version.stdout | trim }}
     quiet: true
 
 - name: Remove Taskfile temporary files
