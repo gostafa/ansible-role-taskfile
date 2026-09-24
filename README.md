@@ -91,7 +91,7 @@ taskfile_cleanup: true
   become: true
 
   roles:
-    - role: YOUR_GALAXY_NAMESPACE.taskfile
+    - role: gostafa.taskfile
 ```
 
 Install a pinned version:
@@ -103,7 +103,7 @@ Install a pinned version:
   become: true
 
   roles:
-    - role: YOUR_GALAXY_NAMESPACE.taskfile
+    - role: gostafa.taskfile
       vars:
         taskfile_version: "3.53.1"
 ```
@@ -116,7 +116,7 @@ Install in a custom directory as a non-root user:
   hosts: all
 
   roles:
-    - role: YOUR_GALAXY_NAMESPACE.taskfile
+    - role: gostafa.taskfile
       vars:
         taskfile_install_dir: "{{ ansible_env.HOME }}/.local/bin"
         taskfile_owner: "{{ ansible_user_id }}"
@@ -128,7 +128,7 @@ Install in a custom directory as a non-root user:
 ```yaml
 ---
 roles:
-  - name: YOUR_GALAXY_NAMESPACE.taskfile
+  - name: gostafa.taskfile
     version: "1.0.0"
 ```
 
@@ -154,10 +154,6 @@ ansible-playbook -i tests/inventory tests/test.yml
 
 ## Publishing
 
-1. Create a public GitHub repository named `ansible-role-taskfile`.
-2. Replace `YOUR_GITHUB_USERNAME` in `meta/main.yml`.
-3. Replace `YOUR_GALAXY_NAMESPACE` in documentation.
-4. Commit and push the role to GitHub.
 5. Import the repository into Ansible Galaxy.
 6. Create a SemVer Git tag such as `v1.0.0` for each role release.
 
