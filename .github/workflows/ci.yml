@@ -25,7 +25,19 @@ jobs:
         run: python -m pip install --upgrade pip -r requirements-ci.txt
 
       - name: Ansible lint
+        env:
+          ANSIBLE_ROLES_PATH: ${{ github.workspace }}/..
         run: ansible-lint .
 
-      - name: Syntax check
-        run: ansible-playbook -i tests/inventory tests/test.yml --syntax-check
+      - name: Syntax check test playbook
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tmp_roles="$(mktemp -d)"
+          trap 'rm -rf "$tmp_roles"' EXIT
+
+          ln -s "${GITHUB_WORKSPACE}" "${tmp_roles}/taskfile"
+
+          ANSIBLE_ROLES_PATH="$tmp_roles" \
+            ansible-playbook -i tests/inventory tests/test.yml --syntax-check
